@@ -7,9 +7,13 @@ export default async function handler(req, res) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return res.status(500).json({error:'API key not configured.'});
   try {
-    let body = req.body || {};
-    if (typeof body === 'string') { try { body = JSON.parse(body); } catch(e) {} }
+    const chunks = [];
+    for await (const chunk of req) chunks.push(chunk);
+    const raw = Buffer.concat(chunks).toString('utf8');
+    let body = {};
+    try { body = JSON.parse(raw); } catch(e) { body = {}; }
     body.model = 'claude-sonnet-4-6';
+    if (!body.max_tokens || body.max_tokens < 4000) body.max_tokens = 6000;
     const r = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01'},
