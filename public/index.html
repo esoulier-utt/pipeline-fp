@@ -1,0 +1,969 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pipeline Agentique LD — France Processus</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bd:#1F3864;--bm:#2E75B6;--bl:#DEEAF1;--bp:#EBF3FB;
+  --gp:#FFF2CC;--gb:#F4B942;--gr:#375623;--gpl:#E2EFDA;--grb:#A9D08E;
+  --rp:#FDE9E9;--red:#9B2335;--border:#BDD7EE;--muted:#6B7A8D;
+  --gold:#C8973A;--ink:#1A2B3C;--bg:#F4F6F9;
+}
+body{font-family:Arial,sans-serif;background:var(--bg);color:var(--ink);min-height:100vh}
+
+/* ── HEADER ── */
+.header{background:linear-gradient(135deg,var(--bd),var(--bm));padding:1rem 1.5rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap}
+.header-left h1{font-size:16px;color:#fff;font-weight:bold;margin-bottom:2px}
+.header-left p{font-size:10px;color:rgba(255,255,255,.75)}
+.api-zone{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.api-zone label{font-size:10px;color:rgba(255,255,255,.85);font-weight:bold;white-space:nowrap}
+.api-input{padding:6px 10px;border-radius:5px;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.12);color:#fff;font-size:11px;width:280px;font-family:monospace}
+.api-input::placeholder{color:rgba(255,255,255,.5)}
+.api-input:focus{outline:none;border-color:rgba(255,255,255,.7);background:rgba(255,255,255,.2)}
+.api-status{font-size:10px;padding:4px 10px;border-radius:99px;white-space:nowrap}
+.api-status.ok{background:var(--gpl);color:var(--gr)}
+.api-status.err{background:var(--rp);color:var(--red)}
+.api-status.idle{background:rgba(255,255,255,.15);color:rgba(255,255,255,.7)}
+
+/* ── PIPELINE NAV ── */
+.pip-nav{display:flex;align-items:stretch;background:#fff;border-bottom:2px solid var(--border);overflow-x:auto}
+.pip-tab{display:flex;align-items:center;gap:8px;padding:10px 16px;cursor:pointer;border-right:1px solid var(--border);transition:background .12s;white-space:nowrap;border-bottom:2px solid transparent;margin-bottom:-2px;flex-shrink:0}
+.pip-tab:hover{background:var(--bp)}
+.pip-tab.active{border-bottom-color:var(--bd);background:var(--bp)}
+.pip-tab.done{border-bottom-color:var(--gr)}
+.tab-num{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:bold;color:#fff;flex-shrink:0}
+.tab-info{font-size:11px}
+.tab-info .tab-name{font-weight:bold;color:var(--bd)}
+.tab-info .tab-sub{font-size:9px;color:var(--muted)}
+.pip-arrow{padding:0 4px;color:var(--border);font-size:14px;flex-shrink:0;align-self:center}
+.badge-done{font-size:8px;background:var(--gpl);color:var(--gr);border:1px solid var(--grb);border-radius:99px;padding:1px 5px;margin-left:4px}
+
+/* ── MAIN LAYOUT ── */
+.main{max-width:1100px;margin:0 auto;padding:1.2rem}
+.panel{display:none}.panel.active{display:block}
+.card{background:#fff;border:1px solid var(--border);border-radius:8px;padding:1rem;margin-bottom:.8rem}
+.sc{font-size:9px;font-weight:bold;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);padding-bottom:4px;margin-bottom:8px}
+label{display:block;font-size:9px;font-weight:bold;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:3px}
+textarea{width:100%;padding:7px 9px;border:1px solid var(--border);border-radius:5px;font-size:11px;color:var(--ink);background:var(--bp);resize:vertical;min-height:60px;font-family:Arial,sans-serif}
+textarea:focus{outline:none;border-color:var(--bm);background:#fff}
+input[type=text]{width:100%;padding:6px 9px;border:1px solid var(--border);border-radius:5px;font-size:11px;color:var(--ink);background:var(--bp)}
+input[type=text]:focus{outline:none;border-color:var(--bm);background:#fff}
+select{width:100%;padding:6px 9px;border:1px solid var(--border);border-radius:5px;font-size:11px;color:var(--ink);background:#fff}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:.8rem;margin-bottom:.8rem}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:.8rem;margin-bottom:.8rem}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;gap:6px;border:none;padding:8px 16px;border-radius:5px;cursor:pointer;font-size:10px;font-weight:bold;letter-spacing:.06em;text-transform:uppercase;transition:background .12s,transform .1s}
+.btn:hover{transform:translateY(-1px)}.btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.btn-primary{background:var(--bd);color:#fff}.btn-primary:hover{background:var(--bm)}
+.btn-gold{background:var(--gold);color:#fff}.btn-gold:hover{background:#A07020}
+.btn-ok{background:var(--gr);color:#fff}.btn-ok:hover{background:#2A5020}
+.btn-warn{background:#C8973A;color:#fff}
+.btn-sec{background:#fff;color:var(--muted);border:1px solid var(--border)}.btn-sec:hover{border-color:var(--bm);color:var(--bm)}
+.btn-red{background:var(--red);color:#fff}
+.btn-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:.5rem}
+
+/* ── STATUS / ALERTS ── */
+.st{padding:7px 12px;border-radius:6px;font-size:11px;margin-bottom:.7rem;display:none}
+.st.run{background:var(--gp);border:1px solid var(--gb);color:#7F5000;display:flex;align-items:center;gap:7px}
+.st.err{background:var(--rp);border:1px solid var(--red);color:var(--red);display:block}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--gb);animation:p 1.2s ease-in-out infinite;flex-shrink:0}
+@keyframes p{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.7)}}
+.alert-ok{background:var(--gpl);border:1px solid var(--grb);color:var(--gr);padding:6px 10px;border-radius:5px;font-size:11px;margin-bottom:.5rem}
+.alert-warn{background:var(--gp);border:1px solid var(--gb);color:#7F5000;padding:6px 10px;border-radius:5px;font-size:11px;margin-bottom:.5rem}
+
+/* ── ZONE DONNÉES REÇUES ── */
+.recv-zone{border:2px solid var(--grb);background:var(--gpl);border-radius:8px;padding:.8rem;margin-bottom:.8rem}
+.recv-zone .sc{color:var(--gr);border-color:var(--grb)}
+.recv-preview{font-size:10px;font-family:monospace;background:#fff;border:1px solid var(--grb);border-radius:4px;padding:6px 8px;max-height:80px;overflow-y:auto;color:var(--gr)}
+
+/* ── TAGS ── */
+.tag{display:inline-block;font-size:8px;font-weight:bold;padding:1px 5px;border-radius:99px;white-space:nowrap;margin-right:3px}
+.tag-c{background:#DEEAF1;color:#1F5C9A;border:1px solid #BDD7EE}
+.tag-pr{background:var(--gp);color:#7F5000;border:1px solid var(--gb)}
+.tag-p{background:var(--gpl);color:var(--gr);border:1px solid var(--grb)}
+.tag-sc1{background:#E8EDF5;color:var(--bd);border:1px solid #8FAADC}
+.tag-sc2{background:#D6E4F0;color:#1F5C9A;border:1px solid var(--bm)}
+.tag-sc3{background:#EAF4EE;color:#2A5E35;border:1px solid #70B87F}
+.tag-sc4{background:var(--gp);color:#7F5000;border:1px solid var(--gb)}
+.tag-sc5{background:var(--gpl);color:var(--gr);border:1px solid var(--grb)}
+.tag-nS{background:#F2F2F2;color:#444;border:1px solid #CCC}
+.tag-nF{background:var(--bl);color:var(--bd);border:1px solid var(--border)}
+
+/* ── TABLEAU MISA ── */
+.misa-table{width:100%;border-collapse:collapse;font-size:10px;overflow-x:auto;display:block}
+.misa-table th{text-align:left;padding:5px 7px;font-size:9px;font-weight:bold;color:#fff;background:var(--bd);white-space:nowrap;border:1px solid rgba(255,255,255,.2)}
+.misa-table td{padding:5px 7px;border:1px solid var(--border);vertical-align:top;line-height:1.4}
+.misa-table tr:nth-child(even) td{background:var(--bp)}
+.misa-table tr:hover td{background:var(--bl)}
+
+/* ── SÉQUENCES A3 ── */
+.seq-card{border:1px solid var(--border);border-radius:7px;margin-bottom:.5rem;overflow:hidden}
+.seq-hdr{display:flex;align-items:flex-start;gap:8px;padding:7px 10px;background:var(--bd);color:#fff;cursor:pointer}
+.seq-code{background:rgba(255,255,255,.2);border-radius:3px;font-size:9px;font-weight:bold;padding:1px 6px;flex-shrink:0;white-space:nowrap}
+.seq-lib{font-size:11px;flex:1;line-height:1.3}
+.seq-body{display:none;padding:10px;border-top:1px solid var(--border)}
+.seq-body.open{display:block}
+.seq-grid{display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:.5rem}
+.seq-box{border-radius:6px;padding:7px 9px;border:1px solid}
+.sb-m{background:#EEF2FF;border-color:#C7D2FE}.sb-m .sl{color:#3730A3}
+.sb-s{background:var(--gpl);border-color:var(--grb)}.sb-s .sl{color:var(--gr)}
+.sb-d{background:var(--gp);border-color:var(--gb)}.sb-d .sl{color:#7F5000}
+.sb-f{background:var(--bp);border-color:var(--border)}.sb-f .sl{color:var(--muted)}
+.sl{font-size:8px;font-weight:bold;letter-spacing:.08em;text-transform:uppercase;margin-bottom:3px}
+.seq-box p{font-size:10px;line-height:1.5}
+.consigne{font-style:italic;font-size:10px;color:var(--bd);background:var(--bl);border-left:3px solid var(--bm);padding:5px 8px;border-radius:0 4px 4px 0;margin-bottom:.4rem}
+.ci-anc{font-size:9px;color:#7F5000;background:var(--gp);border:1px dashed var(--gb);border-radius:4px;padding:4px 7px;font-style:italic;margin-top:.4rem}
+
+/* ── SVG ZONE A4 ── */
+.svg-card{border:1px solid var(--border);border-radius:7px;overflow:hidden;margin-bottom:.6rem}
+.svg-hdr{display:flex;align-items:center;justify-content:space-between;padding:7px 10px;background:var(--bd);color:#fff;flex-wrap:wrap;gap:6px}
+.svg-hdr-title{font-size:11px;flex:1}
+.svg-hdr-meta{font-size:8px;opacity:.75}
+.svg-sbar{padding:5px 10px;font-size:10px;font-family:monospace}
+.svg-sbar.wait{background:var(--bp);color:var(--muted)}
+.svg-sbar.run{background:var(--gp);border-bottom:1px solid var(--gb);color:#7F5000}
+.svg-sbar.done{background:var(--gpl);border-bottom:1px solid var(--grb);color:var(--gr)}
+.svg-sbar.fail{background:var(--rp);border-bottom:1px solid var(--red);color:var(--red)}
+.svg-sbar.approved{background:var(--gpl);border-bottom:1px solid var(--grb);color:var(--gr);font-weight:bold}
+.svg-preview{padding:12px;background:#fafafa;min-height:140px;display:flex;align-items:center;justify-content:center;border-top:1px solid var(--border)}
+.svg-preview svg{max-width:100%;height:auto}
+.svg-actions{display:flex;gap:6px;padding:7px 10px;border-top:1px solid var(--border);background:#fff;flex-wrap:wrap}
+.ph{color:var(--muted);font-size:11px;font-style:italic;text-align:center;padding:20px}
+
+/* ── QA A5 ── */
+.score-bar{height:10px;background:#DDD;border-radius:5px;margin:8px 0;overflow:hidden}
+.score-fill{height:100%;border-radius:5px;transition:width .8s}
+.alert-item{display:flex;align-items:flex-start;gap:8px;padding:6px 9px;border-radius:5px;margin-bottom:.3rem;font-size:11px;line-height:1.5}
+.alert-item.ok{background:var(--gpl);border:1px solid var(--grb);color:var(--gr)}
+.alert-item.warn{background:var(--gp);border:1px solid var(--gb);color:#7F5000}
+.alert-item.err{background:var(--rp);border:1px solid var(--red);color:var(--red)}
+.fiche{border:2px solid var(--bd);border-radius:8px;overflow:hidden;margin-bottom:.8rem}
+.fiche-hdr{background:var(--bd);color:#fff;padding:8px 12px;display:flex;align-items:center;justify-content:space-between}
+.fiche-hdr h3{font-size:13px}
+.fiche-body{padding:10px 12px}
+.fi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;margin-bottom:.6rem}
+.fi-item{background:var(--bp);border-radius:5px;padding:6px 8px}
+.fi-item .fil{font-size:8px;font-weight:bold;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:2px}
+.fi-item .fiv{font-size:11px;color:var(--ink)}
+.ci-box{background:linear-gradient(135deg,var(--bd),var(--bm));border-radius:6px;padding:8px 10px;color:#fff;margin-bottom:.6rem}
+.ci-box .cl{font-size:8px;opacity:.7;letter-spacing:.1em;text-transform:uppercase;margin-bottom:2px}
+.ci-box .cv{font-size:11px;font-style:italic;line-height:1.4}
+.kit-table{width:100%;border-collapse:collapse;font-size:10px}
+.kit-table th{text-align:left;padding:4px 6px;font-size:9px;font-weight:bold;text-transform:uppercase;color:var(--muted);border-bottom:2px solid var(--border);background:var(--bp)}
+.kit-table td{padding:5px 6px;border-bottom:0.5px solid var(--border);vertical-align:top;line-height:1.4}
+.kit-table tr:hover td{background:var(--bp)}
+.sig-row{display:flex;align-items:center;gap:.8rem;flex-wrap:wrap}
+.sig-field{flex:1;min-width:140px}
+.sig-field label{font-size:9px;font-weight:bold;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:3px;display:block}
+.exp-zone{background:var(--gpl);border:1px solid var(--grb);border-radius:6px;padding:.8rem;margin-top:.6rem;display:none}
+.exp-ta{width:100%;height:80px;font-family:monospace;font-size:9px;padding:5px;border:1px solid var(--grb);border-radius:4px;background:#fff;resize:vertical;display:block;margin:5px 0}
+
+/* ── CI BOX GRANDE ── */
+.ci-main{background:linear-gradient(135deg,var(--bd),var(--bm));border-radius:8px;padding:10px 14px;margin-bottom:.8rem;color:#fff}
+.ci-main .cm-l{font-size:8px;opacity:.7;letter-spacing:.12em;text-transform:uppercase;margin-bottom:3px}
+.ci-main .cm-v{font-size:12px;font-style:italic;line-height:1.5}
+
+/* ── OP SELECTOR A4 ── */
+.op-item{display:flex;align-items:flex-start;gap:8px;padding:7px 10px;border:1px solid var(--border);border-radius:6px;background:#fff;cursor:pointer;margin-bottom:.4rem}
+.op-item.sel{border-color:var(--bd);background:var(--bl)}
+.op-item input[type=checkbox]{width:14px;height:14px;accent-color:var(--bd);flex-shrink:0;margin-top:2px;cursor:pointer}
+
+/* ── PLAN TABLE ── */
+.plan-table{width:100%;border-collapse:collapse;font-size:10px;margin-bottom:.7rem}
+.plan-table th{text-align:left;padding:4px 7px;font-size:9px;font-weight:bold;color:var(--muted);border-bottom:2px solid var(--border);background:var(--bp)}
+.plan-table td{padding:5px 7px;border-bottom:0.5px solid var(--border);vertical-align:top;line-height:1.4}
+.plan-table tr:hover td{background:var(--bp)}
+
+.footer{text-align:center;padding:1rem;font-size:9px;color:var(--muted);border-top:1px solid var(--border);background:#fff;margin-top:1.5rem}
+@media(max-width:600px){.grid2,.grid3,.fi-grid,.seq-grid{grid-template-columns:1fr}.api-input{width:200px}}
+</style>
+</head>
+<body>
+
+<!-- ── HEADER ── -->
+<div class="header">
+  <div class="header-left">
+    <h1>Pipeline Agentique de Learning Design</h1>
+    <p>France Processus · MISA/MOT Paquette 1997 · méthode conceptu@ UTT · v0.4</p>
+  </div>
+  <div style="font-size:10px;background:rgba(255,255,255,.15);border-radius:5px;padding:5px 12px;color:rgba(255,255,255,.85)">
+    ✓ Accès sécurisé — aucune configuration requise
+  </div>
+</div>
+
+<!-- ── PIPELINE NAV ── -->
+<div class="pip-nav">
+  <div class="pip-tab active" id="tab0" onclick="showTab(0)">
+    <div class="tab-num" style="background:#4A9FD5">1</div>
+    <div class="tab-info"><div class="tab-name">Cadrage</div><div class="tab-sub">Blocs → OF</div></div>
+  </div>
+  <div class="pip-arrow">→</div>
+  <div class="pip-tab" id="tab1" onclick="showTab(1)">
+    <div class="tab-num" style="background:var(--bm)">2</div>
+    <div class="tab-info"><div class="tab-name">MISA/MOP</div><div class="tab-sub">Tableau OP</div></div>
+  </div>
+  <div class="pip-arrow">→</div>
+  <div class="pip-tab" id="tab2" onclick="showTab(2)">
+    <div class="tab-num" style="background:#1F5C9A">3</div>
+    <div class="tab-info"><div class="tab-name">Scénario</div><div class="tab-sub">Activités</div></div>
+  </div>
+  <div class="pip-arrow">→</div>
+  <div class="pip-tab" id="tab3" onclick="showTab(3)">
+    <div class="tab-num" style="background:#1A4A80">4</div>
+    <div class="tab-info"><div class="tab-name">Schémas SVG</div><div class="tab-sub">Médias</div></div>
+  </div>
+  <div class="pip-arrow">→</div>
+  <div class="pip-tab" id="tab4" onclick="showTab(4)">
+    <div class="tab-num" style="background:var(--gr)">5</div>
+    <div class="tab-info"><div class="tab-name">QA & Kit</div><div class="tab-sub">Validation</div></div>
+  </div>
+</div>
+
+<div class="main">
+
+<!-- ════════════════ AGENT 1 ════════════════ -->
+<div class="panel active" id="panel0">
+<div class="card">
+  <div class="sc">Agent 1 — Cadrage des compétences · Démarche 2 passes · Paquette 1997</div>
+  <div class="alert-warn">💡 Pour la démo BC5, cliquez directement <strong>"Charger données BC5"</strong> ci-dessous pour pré-remplir avec le cas validé — ou saisissez vos propres sources.</div>
+  <div class="btn-row" style="margin-bottom:.8rem">
+    <button class="btn btn-gold" onclick="loadBC5_A1()">⚡ Charger données BC5 (démo)</button>
+    <span style="font-size:10px;color:var(--muted)">ou saisissez vos sources ci-dessous ↓</span>
+  </div>
+  <div class="grid2">
+    <div><label>Syllabus / Plan de cours</label><textarea id="a1-syllabus" rows="5" placeholder="Collez le syllabus ou plan de cours de la formation…"></textarea></div>
+    <div><label>Référentiel métier / RNCP</label><textarea id="a1-referentiel" rows="5" placeholder="Référentiel de compétences métier, fiche RNCP, descriptif de poste…"></textarea></div>
+    <div><label>Contraintes de formation</label><textarea id="a1-contraintes" rows="3" placeholder="Durée, format, niveau cible, public, certifications requises…"></textarea></div>
+    <div><label>Notes expert / Savoir tacite</label><textarea id="a1-expert" rows="3" placeholder="Points de vigilance, exemples terrain, cas types, questions fréquentes…"></textarea></div>
+  </div>
+  <div class="btn-row">
+    <button class="btn btn-primary" id="a1-run" onclick="runA1()">▶ Analyser et produire le brief</button>
+    <span style="font-size:10px;color:var(--muted);font-style:italic" id="a1-hint">Chargez des données ou saisissez des sources avant de lancer</span>
+  </div>
+</div>
+<div class="st" id="a1-st"><div class="dot"></div><span id="a1-stxt">Analyse en cours…</span></div>
+<div class="st err" id="a1-eb"></div>
+<div id="a1-result" style="display:none">
+  <div class="card">
+    <div class="sc">Brief Agent 1 produit — Blocs de compétences identifiés</div>
+    <div id="a1-output"></div>
+    <div class="btn-row" style="margin-top:.8rem">
+      <button class="btn btn-ok" onclick="sendToA2()">→ Envoyer à l'Agent 2</button>
+      <button class="btn btn-sec" onclick="copyJSON('a1-json-hidden')">📋 Copier JSON</button>
+    </div>
+    <textarea id="a1-json-hidden" style="display:none"></textarea>
+  </div>
+</div>
+</div>
+
+<!-- ════════════════ AGENT 2 ════════════════ -->
+<div class="panel" id="panel1">
+<div class="recv-zone" id="a2-recv" style="display:none">
+  <div class="sc">Données reçues de l'Agent 1</div>
+  <div class="recv-preview" id="a2-recv-preview"></div>
+</div>
+<div class="card">
+  <div class="sc">Agent 2 — Conception MISA/MOP · Paquette 1997 strict</div>
+  <div class="alert-warn">💡 En démo BC5 : données pré-remplies depuis l'Agent 1, ou cliquez <strong>"Charger BC5"</strong> directement.</div>
+  <div class="btn-row" style="margin-bottom:.8rem">
+    <button class="btn btn-gold" onclick="loadBC5_A2()">⚡ Charger données BC5 (démo)</button>
+  </div>
+  <div class="grid3">
+    <div><label>Titre de la formation</label><input type="text" id="a2-titre" placeholder="Ex : Sensibilisation Processus 2j AFNOR"></div>
+    <div><label>Public cible</label><input type="text" id="a2-public" placeholder="Ex : Managers non-spécialistes"></div>
+    <div><label>Niveau dominant</label>
+      <select id="a2-niveau"><option value="S">S — Sensibilisation</option><option value="F" selected>F — Familiarisation</option><option value="M">M — Maîtrise</option><option value="E">E — Expertise</option></select></div>
+    <div><label>Durée totale</label><input type="text" id="a2-duree" placeholder="Ex : 2 jours / 14h"></div>
+    <div><label>Format</label><input type="text" id="a2-format" placeholder="Ex : Présentiel inter-entreprises"></div>
+    <div><label>Bloc sélectionné</label><input type="text" id="a2-bloc" placeholder="Ex : BC5 — Technologies numériques"></div>
+  </div>
+  <div><label>Objectifs de formation (OF)</label><textarea id="a2-ofs" rows="5" placeholder="Listez les OF du bloc avec leur MOP et habileté estimée…"></textarea></div>
+  <div class="btn-row" style="margin-top:.5rem">
+    <button class="btn btn-primary" id="a2-run" onclick="runA2()">▶ Générer le tableau MISA/MOP</button>
+    <span style="font-size:10px;color:var(--muted);font-style:italic" id="a2-hint">~15 secondes</span>
+  </div>
+</div>
+<div class="st" id="a2-st"><div class="dot"></div><span id="a2-stxt">Construction du tableau…</span></div>
+<div class="st err" id="a2-eb"></div>
+<div id="a2-result" style="display:none">
+  <div class="card">
+    <div class="sc">Tableau de conception MISA/MOP</div>
+    <div id="a2-ci-display"></div>
+    <div style="overflow-x:auto"><table class="misa-table" id="a2-table"><thead><tr><th>Code</th><th>Objectif pédagogique</th><th>Contenus</th><th>MOP</th><th>Habileté</th><th>Niveau</th><th>Durée</th><th>Scénario</th><th>Modalité</th></tr></thead><tbody id="a2-tbody"></tbody></table></div>
+    <div class="btn-row" style="margin-top:.8rem">
+      <button class="btn btn-ok" onclick="sendToA3()">→ Envoyer à l'Agent 3</button>
+      <button class="btn btn-sec" onclick="copyJSON('a2-json-hidden')">📋 Copier JSON</button>
+    </div>
+    <textarea id="a2-json-hidden" style="display:none"></textarea>
+  </div>
+</div>
+</div>
+
+<!-- ════════════════ AGENT 3 ════════════════ -->
+<div class="panel" id="panel2">
+<div class="recv-zone" id="a3-recv" style="display:none">
+  <div class="sc">Données reçues de l'Agent 2</div>
+  <div class="recv-preview" id="a3-recv-preview"></div>
+</div>
+<div class="card">
+  <div class="sc">Agent 3 — Scénario détaillé · Activité mentale → surface · 5 principes UTT</div>
+  <div class="alert-warn">💡 En démo BC5 : données pré-remplies depuis l'Agent 2, ou cliquez <strong>"Charger BC5"</strong>.</div>
+  <div class="btn-row" style="margin-bottom:.8rem">
+    <button class="btn btn-gold" onclick="loadBC5_A3()">⚡ Charger données BC5 (démo)</button>
+  </div>
+  <div class="grid2">
+    <div><label>Corpus FP / Contenus disponibles <em style="font-weight:normal;font-size:9px">(optionnel)</em></label><textarea id="a3-corpus" rows="4" placeholder="Extraits de documents FP, définitions, exemples terrain…"></textarea></div>
+    <div><label>Notes expert formateur <em style="font-weight:normal;font-size:9px">(optionnel)</em></label><textarea id="a3-expert" rows="4" placeholder="Points de vigilance, anecdotes terrain, questions fréquentes…"></textarea></div>
+  </div>
+  <div class="btn-row">
+    <button class="btn btn-primary" id="a3-run" onclick="runA3()">▶ Générer le scénario détaillé</button>
+    <span style="font-size:10px;color:var(--muted);font-style:italic" id="a3-hint">~25 secondes</span>
+  </div>
+</div>
+<div class="st" id="a3-st"><div class="dot"></div><span id="a3-stxt">Conception des séquences…</span></div>
+<div class="st err" id="a3-eb"></div>
+<div id="a3-result" style="display:none">
+  <div class="card">
+    <div class="sc">Scénario détaillé BC5</div>
+    <div id="a3-ci-display"></div>
+    <div class="sc" style="margin-top:.5rem">Plan de séance horaire</div>
+    <table class="plan-table" id="a3-plan"><thead><tr><th>Horaire</th><th>OP</th><th>Activité</th><th>Scénario MISA</th><th>Durée</th></tr></thead><tbody id="a3-plan-body"></tbody></table>
+    <div class="sc">Séquences détaillées — cliquer pour déplier</div>
+    <div id="a3-seqs"></div>
+    <div class="btn-row" style="margin-top:.8rem">
+      <button class="btn btn-ok" onclick="sendToA4()">→ Envoyer à l'Agent 4</button>
+      <button class="btn btn-sec" onclick="copyJSON('a3-json-hidden')">📋 Copier JSON</button>
+    </div>
+    <textarea id="a3-json-hidden" style="display:none"></textarea>
+  </div>
+</div>
+</div>
+
+<!-- ════════════════ AGENT 4 ════════════════ -->
+<div class="panel" id="panel3">
+<div class="recv-zone" id="a4-recv" style="display:none">
+  <div class="sc">Données reçues de l'Agent 3</div>
+  <div class="recv-preview" id="a4-recv-preview"></div>
+</div>
+<div class="card">
+  <div class="sc">Agent 4 — Schémas SVG · MOP × Habileté → type de schéma · Validation sélective</div>
+  <div class="btn-row" style="margin-bottom:.8rem">
+    <button class="btn btn-gold" onclick="loadBC5_A4()">⚡ Charger données BC5 (démo)</button>
+  </div>
+  <div id="a4-op-list"><div class="ph">Chargez les données de l'Agent 3 pour voir la liste des OP</div></div>
+  <div class="btn-row" style="margin-top:.5rem">
+    <button class="btn btn-primary" id="a4-run" onclick="genSelectedSVG()" disabled>▶ Générer les schémas sélectionnés</button>
+    <span style="font-size:10px;color:var(--muted);font-style:italic" id="a4-hint">Sélectionnez 1 à 2 OP</span>
+  </div>
+</div>
+<div class="st err" id="a4-eb"></div>
+<div id="a4-svgcards" style="margin-top:.5rem"></div>
+<div class="card" id="a4-index-card" style="display:none">
+  <div class="sc">Schémas validés — Index</div>
+  <div id="a4-index-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:.6rem"></div>
+  <div class="btn-row" style="margin-top:.5rem">
+    <button class="btn btn-ok" onclick="sendToA5()">→ Envoyer à l'Agent 5</button>
+  </div>
+</div>
+</div>
+
+<!-- ════════════════ AGENT 5 ════════════════ -->
+<div class="panel" id="panel4">
+<div class="recv-zone" id="a5-recv" style="display:none">
+  <div class="sc">Données reçues des agents précédents</div>
+  <div class="recv-preview" id="a5-recv-preview"></div>
+</div>
+<div class="card">
+  <div class="sc">Agent 5 — Validation globale QA · Rapport qualité · Kit final · Archivage SB3</div>
+  <div class="btn-row" style="margin-bottom:.8rem">
+    <button class="btn btn-primary" id="a5-run" onclick="runA5()">▶ Lancer le contrôle qualité global</button>
+    <span style="font-size:10px;color:var(--muted);font-style:italic" id="a5-hint">~15 secondes</span>
+  </div>
+</div>
+<div class="st" id="a5-st"><div class="dot"></div><span id="a5-stxt">Analyse de cohérence…</span></div>
+<div class="st err" id="a5-eb"></div>
+<div id="a5-result" style="display:none">
+  <div class="card">
+    <div class="sc">Score de cohérence MISA/MOP global</div>
+    <div style="text-align:center;padding:.5rem 0">
+      <div style="font-size:36px;font-weight:bold;color:var(--bd)" id="a5-score">—</div>
+      <div style="font-size:11px;color:var(--muted)" id="a5-score-lbl">—</div>
+      <div class="score-bar"><div class="score-fill" id="a5-score-fill" style="width:0%"></div></div>
+    </div>
+  </div>
+  <div class="card"><div class="sc">Alertes QA classées</div><div id="a5-alerts" style="margin-top:5px"></div></div>
+  <div class="fiche" id="a5-fiche">
+    <div class="fiche-hdr"><h3 id="a5-fiche-titre">Fiche synthèse</h3><span>France Processus · 1 page</span></div>
+    <div class="fiche-body">
+      <div class="ci-box"><div class="cl">Concept intégrateur</div><div class="cv" id="a5-ci">—</div></div>
+      <div class="fi-grid" id="a5-fi-grid"></div>
+      <div class="sc">Tableau de traçabilité Blocs → OF → OP</div>
+      <table class="kit-table"><thead><tr><th>Bloc</th><th>OF</th><th>Code OP</th><th>MOP</th><th>Habileté</th><th>Niveau</th><th>Scénario</th><th>Durée</th></tr></thead><tbody id="a5-tbody"></tbody></table>
+    </div>
+  </div>
+  <div class="card" style="border:2px solid var(--gb)">
+    <div class="sc" style="color:#7F5000">⚑ Validation finale — Point d'injection expert obligatoire</div>
+    <div class="sig-row" style="margin-bottom:.6rem">
+      <div class="sig-field"><label>Nom du validateur</label><input type="text" id="a5-nom" placeholder="Prénom Nom"></div>
+      <div class="sig-field"><label>Fonction</label><input type="text" id="a5-fn" placeholder="Ex : Expert pédagogique FP"></div>
+      <div class="sig-field"><label>Date</label><input type="text" id="a5-date" placeholder="JJ/MM/AAAA"></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-ok" onclick="valider()">✓ Valider et archiver le kit</button>
+      <button class="btn btn-sec" onclick="exportKit()">📋 Exporter kit JSON</button>
+    </div>
+    <div id="a5-val-msg" style="display:none;font-size:11px;margin-top:.5rem;color:var(--gr)"></div>
+    <div class="exp-zone" id="a5-exp">
+      <p style="font-size:10px;color:var(--gr);font-style:italic">Sélectionnez tout puis Ctrl+C</p>
+      <textarea class="exp-ta" id="a5-expta" readonly></textarea>
+      <button onclick="doCopy()" style="background:var(--gr);color:#fff;border:none;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:10px;font-weight:bold" id="a5-cpbtn">📋 Copier</button>
+    </div>
+  </div>
+</div>
+</div>
+
+</div><!-- /main -->
+<div class="footer">France Processus · Pipeline Agentique de Learning Design · v0.4 · MISA/MOT Paquette 1997 · méthode conceptu@ UTT (Eddie Soulier) · Entrez votre clé API Anthropic pour utiliser les agents</div>
+
+<script>
+/* ═══════════════════════════════════════════
+   ÉTAT GLOBAL
+═══════════════════════════════════════════ */
+var STATE = {
+  apiKey: '',
+  a1: null, a2: null, a3: null, a4: null,
+  svgStore: {}
+};
+
+/* ═══════════════════════════════════════════
+   DONNÉES PRÉ-VALIDÉES BC5
+═══════════════════════════════════════════ */
+var BC5_A1 = {
+  titre_formation:"Management par les processus — Sensibilisation 2 jours AFNOR",
+  public_cible:"Managers, responsables qualité, pilotes de processus — public mixte non-spécialiste",
+  duree:"2 jours / 14h", niveau_dominant:"F", format:"Présentiel inter-entreprises",
+  concept_integrateur_suggere:"Un manager opérationnel doit décider quelles technologies adopter pour piloter ses processus : il explore, questionne, et argumente ses choix face à sa direction.",
+  _selection:"BC5 — Tirer le meilleur parti des technologies et des méthodes",
+  blocs:[{
+    code:"BC5", titre:"Évaluer et mobiliser les technologies numériques au service du management par les processus",
+    description:"Le manager est capable d'identifier les apports et les limites des technologies numériques (Process Mining, IA, RPA, BPMS, ERP), d'évaluer les écarts entre pratiques existantes et solutions induites, et de justifier des choix technologiques adaptés.",
+    mop_dominant:"PR", habilete_estimee:5, habilete_label:"Appliquer", niveau:"F",
+    objectifs_formation:[
+      {code:"BC5-OF1",libelle:"Le manager est capable d'évaluer les impacts potentiels des nouvelles technologies numériques sur l'organisation et le pilotage de ses processus",mop:"C/PR",habilete_num:4,habilete_label:"Transposer–traduire",niveau:"F",scenario_suggere:"Étude de cas",op_estimes:3},
+      {code:"BC5-OF2",libelle:"Le manager est capable de mettre en perspective les solutions Process Mining, RPA, BPMS et IA agentique pour identifier celles pertinentes dans son contexte",mop:"C/PR",habilete_num:4,habilete_label:"Transposer–traduire",niveau:"F",scenario_suggere:"Étude de cas",op_estimes:3},
+      {code:"BC5-OF3",libelle:"Le manager est capable de justifier les écarts entre les processus réels de son organisation et ceux induits par les ERP, et d'argumenter les choix de spécificités à préserver",mop:"PR",habilete_num:5,habilete_label:"Appliquer",niveau:"F",scenario_suggere:"Induction",op_estimes:2}
+    ]
+  }]
+};
+
+var BC5_A2 = {
+  titre_module:"BC5 — Technologies numériques au service du management par les processus",
+  concept_integrateur:"Un manager opérationnel doit décider quelles technologies adopter pour piloter ses processus : il explore, questionne, et argumente ses choix face à sa direction.",
+  score_coherence:88,
+  objectifs:[
+    {code:"OP-01",libelle:"Situer les 5 familles technologiques dans le panorama du management par les processus",contenus:"Panorama Process Mining, IA agentique, DTO, RPA, BPMS",mop:"C/F",habilete_num:2,habilete_label:"Intégrer",niveau:"S",duree_min:10,scenario_num:1,scenario_label:"Réception",modalite_activite:"Carte des 5 familles commentée",activite_description:"Présentation visuelle des 5 familles avec analogie concrète"},
+    {code:"OP-02",libelle:"Transposer les apports du Process Mining à la réalité des processus de son organisation",contenus:"Event logs, DFG, écart prescrit/réel",mop:"C/PR",habilete_num:4,habilete_label:"Transposer–traduire",niveau:"F",duree_min:12,scenario_num:3,scenario_label:"Étude de cas",modalite_activite:"Démonstration DFG réel + analyse",activite_description:"DFG Order-to-Cash commenté"},
+    {code:"OP-03",libelle:"Transposer les apports de l'IA agentique et du DTO à l'orchestration de ses processus",contenus:"Agent IA = perception + raisonnement + action ; DTO = réplique numérique",mop:"C/PR",habilete_num:4,habilete_label:"Transposer–traduire",niveau:"F",duree_min:12,scenario_num:3,scenario_label:"Étude de cas",modalite_activite:"Scénario narratif agent IA",activite_description:"Réclamation traitée par agent IA"},
+    {code:"OP-04",libelle:"Distinguer les usages de Process Mining, RPA, BPMS et IA agentique",contenus:"Comparatif 4 technologies : bénéfices, limites, maturité",mop:"C",habilete_num:3,habilete_label:"Instancier–préciser",niveau:"F",duree_min:10,scenario_num:3,scenario_label:"Étude de cas",modalite_activite:"Tableau comparatif 4×5 (2 cases vides)",activite_description:"Cases à compléter collectivement"},
+    {code:"OP-05",libelle:"Transposer les critères de choix d'une solution technologique à son contexte organisationnel",contenus:"Critères : maturité BPM, volumétrie, variabilité, SI existant",mop:"PR",habilete_num:4,habilete_label:"Transposer–traduire",niveau:"F",duree_min:12,scenario_num:3,scenario_label:"Étude de cas",modalite_activite:"Grille de décision sur 2 mini-cas",activite_description:"PME industrie + grand groupe services"},
+    {code:"OP-06",libelle:"Appliquer une démarche de sélection technologique adaptée à la maturité BPM",contenus:"Démarche 4 étapes : diagnostic → identification → grille → déploiement",mop:"P/PR",habilete_num:5,habilete_label:"Appliquer",niveau:"F",duree_min:10,scenario_num:2,scenario_label:"Réception-exercices",modalite_activite:"Exercice guidé 4 étapes",activite_description:"Application à son propre contexte"},
+    {code:"OP-07",libelle:"Analyser les écarts entre les processus réels et ceux induits par les ERP",contenus:"Logique ERP générique ; spécificités organisationnelles",mop:"PR",habilete_num:4,habilete_label:"Transposer–traduire",niveau:"F",duree_min:10,scenario_num:4,scenario_label:"Induction",modalite_activite:"Q&A socratique sur 3 cas",activite_description:"3 cas contrastés → règle induite"},
+    {code:"OP-08",libelle:"Argumenter les choix de spécificités à préserver face aux contraintes d'un ERP",contenus:"Critères de différenciation ; rapport coût/valeur",mop:"PR",habilete_num:5,habilete_label:"Appliquer",niveau:"F",duree_min:8,scenario_num:5,scenario_label:"Construction",modalite_activite:"Production individuelle argumentée",activite_description:"2 spécificités + argument face à la DSI"}
+  ]
+};
+
+var BC5_A3 = {
+  titre_module:"BC5 — Technologies numériques au service du management par les processus",
+  concept_integrateur:"Un manager opérationnel doit décider quelles technologies adopter pour piloter ses processus : il explore, questionne, et argumente ses choix face à sa direction.",
+  public:"Managers non-spécialistes processus", duree_totale:"2h", format:"Présentiel inter-entreprises",
+  sequence:[
+    {op_code:"OP-01",op_libelle:"Situer les 5 familles technologiques dans le panorama du management par les processus",of_code:"BC5-OF1",scenario_misa:"Réception",scenario_num:1,habilete_num:2,habilete_label:"Intégrer",mop:"C/F",niveau:"S",duree_min:10,activite_mentale_profonde:"Percevoir et mémoriser les 5 familles et leurs relations",activite_surface:"Observer la carte, noter, répondre à une question de vérification",description_activite:"Carte visuelle des 5 familles avec analogie concrète et question stratégique.",consigne_apprenant:"Regardez cette carte et identifiez quelle famille répond le mieux à un problème de votre organisation.",medias:[{type:"Carte conceptuelle des 5 familles",contenu:"5 bulles reliées à 'Management par les processus'",principe_utt:"Représentation multiple",fonction_pedagogique:"Vue d'ensemble mémorisable"}],notes_formateur:"Ouvrir sur 'Quelles technos avez-vous déjà entendues ?' Ne pas corriger encore.",concept_integrateur_ancrage:"Cette carte est l'outil que le manager utilisera pour argumenter son choix."},
+    {op_code:"OP-07",op_libelle:"Analyser les écarts entre les processus réels et ceux induits par les ERP",of_code:"BC5-OF3",scenario_misa:"Induction",scenario_num:4,habilete_num:4,habilete_label:"Transposer–traduire",mop:"PR",niveau:"F",duree_min:10,activite_mentale_profonde:"Induire la règle de décision à partir de 3 cas contrastés",activite_surface:"Analyser les 3 cas, répondre aux questions socratiques, formuler la règle",description_activite:"3 cas : cède à l'ERP (perte différenciation), sur-spécifie (coût maintenance), équilibre trouvé.",consigne_apprenant:"Observez ces 3 cas : qu'est-ce qui distingue le succès de l'échec ? Quelle règle pouvez-vous en tirer ?",medias:[{type:"Schéma causal tensions ERP",contenu:"Logique ERP générique VS processus spécifiques, zone de décision au centre",principe_utt:"Représentation multiple",fonction_pedagogique:"Rendre visible la tension structurelle"}],notes_formateur:"Ne pas donner la règle — laisser les participants la formuler puis valider.",concept_integrateur_ancrage:"Le manager identifie quelles spécificités valent la résistance à l'ERP."},
+    {op_code:"OP-08",op_libelle:"Argumenter les choix de spécificités à préserver face aux contraintes d'un ERP",of_code:"BC5-OF3",scenario_misa:"Construction",scenario_num:5,habilete_num:5,habilete_label:"Appliquer",mop:"PR",niveau:"F",duree_min:8,activite_mentale_profonde:"Construire une argumentation défendable face à la DSI",activite_surface:"Identifier 2 spécificités + formuler 1 argument en 2 phrases",description_activite:"Canvas A5 : spécificité / différenciation / argument DSI. Partage de 3-4 productions.",consigne_apprenant:"Identifiez 2 spécificités de votre organisation à ne pas sacrifier à l'ERP. Formulez votre argument en 2 phrases.",medias:[{type:"Canvas argumentation A5",contenu:"Ma spécificité / Pourquoi différenciante / Mon argument DSI",principe_utt:"Différences individuelles",fonction_pedagogique:"Livrable personnel concret"}],notes_formateur:"Clore sur les arguments partagés — meilleures preuves d'apprentissage réel.",concept_integrateur_ancrage:"Le manager formule l'argument qu'il présentera à sa direction — aboutissement du fil conducteur."}
+  ],
+  plan_seance:[
+    {horaire:"H+00:00",duree_min:10,op_code:"OP-01",activite_resume:"Panorama des 5 familles technologiques",methode:"Réception — exposé visuel",materiaux:"Carte des 5 familles"},
+    {horaire:"H+00:10",duree_min:12,op_code:"OP-02",activite_resume:"Process Mining — cas DFG réel",methode:"Étude de cas",materiaux:"Schéma DFG"},
+    {horaire:"H+00:22",duree_min:12,op_code:"OP-03",activite_resume:"IA agentique et DTO",methode:"Étude de cas — scénario narratif",materiaux:"Schéma orchestration"},
+    {horaire:"H+00:34",duree_min:10,op_code:"OP-04",activite_resume:"Tableau comparatif 4 technologies",methode:"Étude de cas",materiaux:"Tableau 4×5"},
+    {horaire:"H+00:44",duree_min:12,op_code:"OP-05",activite_resume:"Grille de choix sur 2 mini-cas",methode:"Étude de cas",materiaux:"Grille de décision"},
+    {horaire:"H+00:56",duree_min:10,op_code:"OP-06",activite_resume:"Démarche sélection 4 étapes",methode:"Réception-exercices",materiaux:"Schéma procédural"},
+    {horaire:"H+01:06",duree_min:10,op_code:"OP-07",activite_resume:"Tensions ERP vs processus réels",methode:"Induction — Q&A socratique",materiaux:"Schéma causal"},
+    {horaire:"H+01:16",duree_min:8,op_code:"OP-08",activite_resume:"Production : argument face à la DSI",methode:"Construction",materiaux:"Canvas A5"}
+  ],
+  notes_formateur_globales:"Maintenir le fil conducteur à chaque transition. Chronométrer rigoureusement. Valoriser les productions de OP-06 et OP-08."
+};
+
+/* ═══════════════════════════════════════════
+   NAVIGATION
+═══════════════════════════════════════════ */
+function showTab(i) {
+  document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('active');});
+  document.querySelectorAll('.pip-tab').forEach(function(t){t.classList.remove('active');});
+  document.getElementById('panel'+i).classList.add('active');
+  document.getElementById('tab'+i).classList.add('active');
+}
+
+/* ═══════════════════════════════════════════
+   GESTION CLÉ API
+═══════════════════════════════════════════ */
+function checkKey(){}
+
+function getKey() {
+  return true; // clé gérée côté serveur
+}
+
+/* ═══════════════════════════════════════════
+   APPEL API ANTHROPIC
+═══════════════════════════════════════════ */
+function callAPI(system, userMsg, maxTokens, callback) {
+  getKey(); // vérification serveur
+  fetch('/api/claude', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'anthropic-version': '2023-06-01'
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-5',
+      max_tokens: maxTokens,
+      system: system,
+      messages: [{role: 'user', content: userMsg}]
+    })
+  })
+  .then(function(r) {
+    if (!r.ok) return r.text().then(function(t){throw new Error('API '+r.status+' — '+t.slice(0,200));});
+    return r.json();
+  })
+  .then(function(data) {
+    var raw = data.content.map(function(b){return b.text||'';}).join('');
+    callback(null, raw);
+  })
+  .catch(function(e) { callback(e.message, null); });
+}
+
+function parseJSON(raw) {
+  if (!raw) return null;
+  try { var m = raw.match(/\{[\s\S]*\}/); return JSON.parse(m ? m[0] : raw); }
+  catch(e) { return null; }
+}
+
+/* ═══════════════════════════════════════════
+   CHARGEMENT DONNÉES BC5
+═══════════════════════════════════════════ */
+function loadBC5_A1() {
+  STATE.a1 = BC5_A1;
+  document.getElementById('a1-syllabus').value = 'Syllabus AFNOR — Sensibilisation Management par les Processus 2 jours\nBloc BC5 : Technologies numériques pour les processus\n- Process Mining et analyse des flux\n- IA agentique et orchestration\n- RPA et hyperautomatisation\n- BPMS et Low-code\n- ERP et spécificités organisationnelles';
+  document.getElementById('a1-contraintes').value = '2 jours / 14h · Format présentiel inter-entreprises · Niveau Familiarisation · Public : Managers non-spécialistes';
+  document.getElementById('a1-hint').textContent = '✓ Données BC5 chargées — cliquez ▶ ou passez directement à l\'Agent 2';
+  document.getElementById('a1-hint').style.color = 'var(--gr)';
+  renderA1Result(BC5_A1);
+}
+
+function loadBC5_A2() {
+  STATE.a1 = BC5_A1; STATE.a2 = BC5_A2;
+  document.getElementById('a2-titre').value = BC5_A2.titre_module;
+  document.getElementById('a2-public').value = BC5_A1.public_cible;
+  document.getElementById('a2-niveau').value = 'F';
+  document.getElementById('a2-duree').value = BC5_A1.duree;
+  document.getElementById('a2-format').value = BC5_A1.format;
+  document.getElementById('a2-bloc').value = 'BC5 — Technologies numériques';
+  document.getElementById('a2-ofs').value = 'BC5-OF1 : Évaluer les impacts des technologies (MOP C/PR, Hab 4, F)\nBC5-OF2 : Mettre en perspective Process Mining, RPA, BPMS, IA agentique (MOP C/PR, Hab 4, F)\nBC5-OF3 : Justifier les écarts processus réels vs ERP (MOP PR, Hab 5, F)';
+  renderA2Result(BC5_A2);
+  document.getElementById('tab1').classList.add('done');
+}
+
+function loadBC5_A3() {
+  STATE.a2 = BC5_A2; STATE.a3 = BC5_A3;
+  renderA3Result(BC5_A3);
+  document.getElementById('tab2').classList.add('done');
+}
+
+function loadBC5_A4() {
+  STATE.a3 = BC5_A3;
+  buildA4OpList(BC5_A3.sequence);
+}
+
+/* ═══════════════════════════════════════════
+   AGENT 1
+═══════════════════════════════════════════ */
+var SYS_A1 = 'INSTRUCTION : Reponds UNIQUEMENT avec un objet JSON valide. Commence par { et termine par }. Aucun markdown.\n\nTu es l\'Agent 1 du pipeline de Learning Design France Processus. Role : extraire les blocs de competences depuis les sources documentaires.\n\nDEMARCHE 2 PASSES OBLIGATOIRES :\nPasse 1 : identifier les ACTIVITES PROFESSIONNELLES REELLES (verbe action + contexte metier reel). Pas reproduire le plan de cours.\nPasse 2 : regrouper en 4-5 blocs de competences formules comme performances metier.\n\nFORMULATION : [Acteur] est capable de [habilete Paquette] [connaissance MOP] [contexte professionnel reel]\nINTERDIT : Comprendre que... Connaitre les... Savoir que...\n\nGRANULARITE : 4-5 blocs max, 1-3 OF par bloc, 2-3 OP estimes par OF.\n\nFORMAT JSON : {"titre_formation":"...","public_cible":"...","duree":"...","niveau_dominant":"S|F|M|E","format":"...","concept_integrateur_suggere":"...","_selection":"...","blocs":[{"code":"BC1","titre":"...","description":"...","mop_dominant":"C|P|PR|F","habilete_estimee":number,"habilete_label":"...","niveau":"S|F|M|E","objectifs_formation":[{"code":"BC1-OF1","libelle":"...","mop":"...","habilete_num":number,"habilete_label":"...","niveau":"...","scenario_suggere":"...","op_estimes":number}]}],"activites_professionnelles_identifiees":["..."],"questions_maieutiques":[{"cible":"...","question":"..."}]}';
+
+function runA1() {
+  if (!getKey()) return;
+  var syl = document.getElementById('a1-syllabus').value.trim();
+  if (!syl) { showErr('a1-eb', 'Renseignez au moins le syllabus ou chargez les données BC5.'); return; }
+  showSt('a1-st', 'Analyse des sources — Passe 1 : activités professionnelles…');
+  var msg = 'Sources :\nSyllabus : '+syl+'\nReferentiel : '+(document.getElementById('a1-referentiel').value||'N/A')+'\nContraintes : '+(document.getElementById('a1-contraintes').value||'N/A')+'\nNotes expert : '+(document.getElementById('a1-expert').value||'N/A')+'\n\nProduis le brief structure JSON complet avec 4-5 blocs de competences.';
+  callAPI(SYS_A1, msg, 8000, function(err, raw) {
+    hideSt('a1-st');
+    if (err) { showErr('a1-eb', err); return; }
+    var d = parseJSON(raw);
+    if (!d) { showErr('a1-eb', 'JSON invalide. Extrait : '+raw.slice(0,200)); return; }
+    STATE.a1 = d;
+    renderA1Result(d);
+    document.getElementById('tab0').classList.add('done');
+  });
+}
+
+function renderA1Result(d) {
+  var html = '';
+  (d.blocs||[]).forEach(function(b) {
+    html += '<div style="border:1px solid var(--border);border-radius:6px;padding:8px 10px;margin-bottom:.4rem">';
+    html += '<div style="font-size:11px;font-weight:bold;color:var(--bd)">'+esc(b.code)+' — '+esc(b.titre)+'</div>';
+    html += '<div style="font-size:10px;color:var(--muted);margin:3px 0">'+esc(b.description||'')+'</div>';
+    (b.objectifs_formation||[]).forEach(function(of) {
+      html += '<div style="font-size:10px;padding:2px 0 2px 12px;border-left:2px solid var(--bm);margin:3px 0">'+esc(of.code)+' · '+esc(of.libelle||'')+'</div>';
+    });
+    html += '</div>';
+  });
+  document.getElementById('a1-output').innerHTML = html;
+  document.getElementById('a1-json-hidden').value = JSON.stringify(d, null, 2);
+  document.getElementById('a1-result').style.display = 'block';
+}
+
+function sendToA2() {
+  if (!STATE.a1) return;
+  STATE.a1._ready = true;
+  showTab(1);
+  var b = STATE.a1.blocs && STATE.a1.blocs[0];
+  if (b) {
+    document.getElementById('a2-titre').value = STATE.a1.titre_formation||'';
+    document.getElementById('a2-public').value = STATE.a1.public_cible||'';
+    document.getElementById('a2-duree').value = STATE.a1.duree||'';
+    document.getElementById('a2-format').value = STATE.a1.format||'';
+    document.getElementById('a2-niveau').value = STATE.a1.niveau_dominant||'F';
+    document.getElementById('a2-bloc').value = (STATE.a1._selection||'').replace('1/5 blocs sélectionnés : ','');
+    var ofs = (b.objectifs_formation||[]).map(function(o){return o.code+' : '+o.libelle+' (MOP '+o.mop+', Hab '+o.habilete_num+', '+o.niveau+')';}).join('\n');
+    document.getElementById('a2-ofs').value = ofs;
+  }
+  document.getElementById('a2-recv').style.display = 'block';
+  document.getElementById('a2-recv-preview').textContent = JSON.stringify(STATE.a1,null,2).slice(0,300)+'…';
+  showAlert('a2-recv', 'Données de l\'Agent 1 transmises automatiquement.');
+}
+
+/* ═══════════════════════════════════════════
+   AGENT 2
+═══════════════════════════════════════════ */
+var SYS_A2 = 'INSTRUCTION : Reponds UNIQUEMENT avec un objet JSON valide. Commence par { et termine par }. Aucun markdown.\n\nTu es l\'Agent 2 du pipeline Learning Design France Processus. Role : produire le tableau de conception MISA/MOP.\n\nREFERENTIEL CANON : Gilbert Paquette, L\'ingenierie pedagogique, PUQ 1997.\n\n10 HABILETES PAQUETTE (libelles EXACTS) :\n01 Porter attention | 02 Integrer | 03 Instancier-preciser | 04 Transposer-traduire | 05 Appliquer | 06 Analyser | 07 Reparer | 08 Synthetiser | 09 Evaluer | 10 Autocontrôler\n\n5 SCENARIOS MISA (Paquette 1997) :\n1 Reception | 2 Reception-exercices | 3 Etude de cas | 4 Induction | 5 Construction\nINTERDIT : Exploration, Questionnement, Application, Modelisation\n\n3 PRINCIPES MISA :\n1. Sensibilisation (S) -> MOP dominant Concept ou Fait -> Hab 01-02\n2. Familiarisation (F) -> MOP dominant Procedure -> Hab 03-05\n3. Maitrise/Expertise -> MOP dominant Principe -> Hab 06-10\n\nARCHITECTURE DEUX NIVEAUX :\n- scenario_label = scenario MISA (ontologique)\n- modalite_activite = instanciation concrete (ne cree pas un 6e scenario)\n\nGRANULARITE : 2-3 OP par OF, 10-40 OP total.\n\nFORMAT JSON : {"titre_module":"...","concept_integrateur":"...","score_coherence":number,"objectifs":[{"code":"OP-01","libelle":"...","contenus":"...","mop":"C|P|PR|F|C/P|C/PR|P/PR|C/F","habilete_num":number,"habilete_label":"...","niveau":"S|F|M|E","duree_min":number,"scenario_num":number,"scenario_label":"...","modalite_activite":"...","activite_description":"..."}],"alertes":[{"type":"ok|warn|err","message":"..."}]}';
+
+function runA2() {
+  if (!getKey()) return;
+  var titre = document.getElementById('a2-titre').value.trim();
+  if (!titre) { showErr('a2-eb', 'Renseignez le titre de la formation.'); return; }
+  showSt('a2-st', 'Construction du tableau MISA/MOP — application des 3 principes Paquette…');
+  var msg = 'Formation : '+titre+'\nPublic : '+document.getElementById('a2-public').value+'\nNiveau : '+document.getElementById('a2-niveau').value+'\nDuree : '+document.getElementById('a2-duree').value+'\nFormat : '+document.getElementById('a2-format').value+'\nBloc : '+document.getElementById('a2-bloc').value+'\nObjectifs de formation :\n'+document.getElementById('a2-ofs').value+'\n\nProduis le tableau de conception MISA/MOP complet avec concept integrateur et score de coherence.';
+  if (STATE.a1) msg += '\n\nBrief Agent 1 : '+JSON.stringify(STATE.a1).slice(0,2000);
+  callAPI(SYS_A2, msg, 6000, function(err, raw) {
+    hideSt('a2-st');
+    if (err) { showErr('a2-eb', err); return; }
+    var d = parseJSON(raw);
+    if (!d) { showErr('a2-eb', 'JSON invalide. Extrait : '+raw.slice(0,200)); return; }
+    STATE.a2 = d;
+    renderA2Result(d);
+    document.getElementById('tab1').classList.add('done');
+  });
+}
+
+function renderA2Result(d) {
+  document.getElementById('a2-ci-display').innerHTML = '<div class="ci-main"><div class="cm-l">Concept intégrateur</div><div class="cm-v">'+esc(d.concept_integrateur||'—')+'</div></div>';
+  var tbody = '';
+  (d.objectifs||[]).forEach(function(op) {
+    var scCls = 'tag-sc'+(op.scenario_num||1);
+    var nivCls = 'tag-n'+(op.niveau||'F');
+    tbody += '<tr><td style="font-family:monospace;font-size:9px;font-weight:bold;color:var(--bd)">'+esc(op.code||'')+'</td>';
+    tbody += '<td>'+esc(op.libelle||'')+'</td>';
+    tbody += '<td style="font-size:9px;color:var(--muted)">'+esc(op.contenus||'')+'</td>';
+    tbody += '<td><span class="tag tag-c">'+esc(op.mop||'')+'</span></td>';
+    tbody += '<td style="font-size:9px">'+esc(op.habilete_num||'')+'·'+esc(op.habilete_label||'')+'</td>';
+    tbody += '<td><span class="tag '+nivCls+'">'+esc(op.niveau||'')+'</span></td>';
+    tbody += '<td style="font-family:monospace;font-size:9px">'+esc(op.duree_min||'?')+'min</td>';
+    tbody += '<td><span class="tag '+scCls+'">'+esc(op.scenario_label||'')+'</span></td>';
+    tbody += '<td style="font-size:9px;color:var(--muted)">'+esc(op.modalite_activite||'')+'</td></tr>';
+  });
+  document.getElementById('a2-tbody').innerHTML = tbody;
+  document.getElementById('a2-json-hidden').value = JSON.stringify(d, null, 2);
+  document.getElementById('a2-result').style.display = 'block';
+}
+
+function sendToA3() {
+  if (!STATE.a2) return;
+  showTab(2);
+  document.getElementById('a3-recv').style.display = 'block';
+  document.getElementById('a3-recv-preview').textContent = JSON.stringify(STATE.a2,null,2).slice(0,300)+'…';
+}
+
+/* ═══════════════════════════════════════════
+   AGENT 3
+═══════════════════════════════════════════ */
+var SYS_A3 = 'INSTRUCTION : Reponds UNIQUEMENT avec un objet JSON valide. Commence par { et termine par }. Aucun markdown. Max 2 phrases par champ texte.\n\nTu es l\'Agent 3 du pipeline Learning Design France Processus. Role : produire le scenario detaille (structure UTT C1).\n\nMATRICE ACTIVITE MENTALE -> SURFACE :\nHab 01-02 + Reception -> ecouter, observer, noter\nHab 03 + Etude de cas -> comparer, identifier exemples\nHab 04 + Etude de cas/Induction -> completer schema, transposer\nHab 05 + Reception-exercices -> exercice guide, application\nHab 06-07 + Induction -> Q&A socratique, debat\nHab 08 + Construction -> produire, construire\n\n5 PRINCIPES MEDIAS UTT : Representation multiple, Contiguite, Economie cognitive, Differences individuelles, Coherence\n\nCONCEPT INTEGRATEUR : ancrer dans CHAQUE sequence.\n\nFORMAT JSON : {"titre_module":"...","concept_integrateur":"...","public":"...","duree_totale":"...","sequence":[{"op_code":"...","op_libelle":"...","of_code":"...","scenario_misa":"...","scenario_num":number,"habilete_num":number,"habilete_label":"...","mop":"...","niveau":"...","duree_min":number,"activite_mentale_profonde":"1 phrase","activite_surface":"1 phrase","description_activite":"2 phrases","consigne_apprenant":"1 phrase directe","medias":[{"type":"...","contenu":"1 phrase","principe_utt":"...","fonction_pedagogique":"1 phrase"}],"notes_formateur":"1-2 phrases","concept_integrateur_ancrage":"1 phrase"}],"plan_seance":[{"horaire":"H+00:00","duree_min":number,"op_code":"...","activite_resume":"...","methode":"...","materiaux":"..."}],"notes_formateur_globales":"..."}';
+
+function runA3() {
+  if (!getKey()) return;
+  if (!STATE.a2) { showErr('a3-eb', 'Chargez d\'abord les données de l\'Agent 2 ou cliquez "Charger BC5".'); return; }
+  showSt('a3-st', 'Conception des activités mentales et de surface…');
+  var msg = 'Tableau MISA/MOP Agent 2 :\n'+JSON.stringify(STATE.a2,null,2).slice(0,3000);
+  if (document.getElementById('a3-corpus').value) msg += '\nCorpus FP : '+document.getElementById('a3-corpus').value;
+  if (document.getElementById('a3-expert').value) msg += '\nNotes expert : '+document.getElementById('a3-expert').value;
+  msg += '\n\nProduis le scenario detaille UTT C1 complet. Sois concis — max 2 phrases par champ.';
+  callAPI(SYS_A3, msg, 8000, function(err, raw) {
+    hideSt('a3-st');
+    if (err) { showErr('a3-eb', err); return; }
+    var d = parseJSON(raw);
+    if (!d) { showErr('a3-eb', 'JSON invalide. Extrait : '+raw.slice(0,200)); return; }
+    STATE.a3 = d;
+    renderA3Result(d);
+    document.getElementById('tab2').classList.add('done');
+  });
+}
+
+function renderA3Result(d) {
+  document.getElementById('a3-ci-display').innerHTML = '<div class="ci-main"><div class="cm-l">Concept intégrateur — fil conducteur</div><div class="cm-v">'+esc(d.concept_integrateur||'—')+'</div></div>';
+  var planHtml = '';
+  (d.plan_seance||[]).forEach(function(r) {
+    var scNum = (function(){var f=(d.sequence||[]).find(function(s){return s.op_code===r.op_code;});return f?f.scenario_num:1;})();
+    planHtml += '<tr><td style="font-family:monospace;font-size:9px">'+esc(r.horaire||'')+'</td>';
+    planHtml += '<td style="font-family:monospace;font-size:9px;font-weight:bold;color:var(--bd)">'+esc(r.op_code||'')+'</td>';
+    planHtml += '<td style="font-size:10px">'+esc(r.activite_resume||'')+'</td>';
+    planHtml += '<td><span class="tag tag-sc'+scNum+'">'+esc(r.methode||'')+'</span></td>';
+    planHtml += '<td style="font-family:monospace;font-size:9px">'+esc(r.duree_min||'?')+'min</td></tr>';
+  });
+  document.getElementById('a3-plan-body').innerHTML = planHtml;
+  var seqHtml = '';
+  (d.sequence||[]).forEach(function(op, i) {
+    var scCls = 'tag-sc'+(op.scenario_num||1);
+    seqHtml += '<div class="seq-card"><div class="seq-hdr" onclick="togSeq('+i+')">';
+    seqHtml += '<span class="seq-code">'+esc(op.op_code||'')+'</span>';
+    seqHtml += '<span class="seq-lib">'+esc((op.op_libelle||'').slice(0,70))+((op.op_libelle||'').length>70?'…':'')+'</span>';
+    seqHtml += '<div style="display:flex;gap:3px;flex-shrink:0"><span class="tag tag-c">'+esc(op.mop||'')+'</span><span class="tag '+scCls+'">Sc.'+esc(op.scenario_num||'?')+' '+esc(op.scenario_misa||'')+'</span></div>';
+    seqHtml += '</div><div class="seq-body'+(i===0?' open':'')+'" id="seq'+i+'">';
+    seqHtml += '<div class="consigne">"'+esc(op.consigne_apprenant||'')+'"</div>';
+    seqHtml += '<div class="seq-grid"><div class="seq-box sb-m"><div class="sl">Activité mentale profonde</div><p>'+esc(op.activite_mentale_profonde||'')+'</p></div>';
+    seqHtml += '<div class="seq-box sb-s"><div class="sl">Activité de surface</div><p>'+esc(op.activite_surface||'')+'</p></div>';
+    var mediaStr = (op.medias&&op.medias[0])?esc(op.medias[0].type)+' — '+esc(op.medias[0].contenu):'—';
+    seqHtml += '<div class="seq-box sb-d"><div class="sl">Média spécifié</div><p>'+mediaStr+'</p></div>';
+    seqHtml += '<div class="seq-box sb-f"><div class="sl">Notes formateur</div><p>'+esc(op.notes_formateur||'')+'</p></div></div>';
+    seqHtml += '<div class="ci-anc">'+esc(op.concept_integrateur_ancrage||'')+'</div></div></div>';
+  });
+  document.getElementById('a3-seqs').innerHTML = seqHtml;
+  document.getElementById('a3-json-hidden').value = JSON.stringify(d, null, 2);
+  document.getElementById('a3-result').style.display = 'block';
+}
+
+function togSeq(i) { var b=document.getElementById('seq'+i); if(b)b.classList.toggle('open'); }
+
+function sendToA4() {
+  if (!STATE.a3) return;
+  showTab(3);
+  document.getElementById('a4-recv').style.display = 'block';
+  document.getElementById('a4-recv-preview').textContent = JSON.stringify(STATE.a3,null,2).slice(0,300)+'…';
+  buildA4OpList(STATE.a3.sequence||[]);
+}
+
+/* ═══════════════════════════════════════════
+   AGENT 4
+═══════════════════════════════════════════ */
+var SCHEMA_MAP = {'C':'conceptuel','F':'comparatif','C/F':'conceptuel','P':'procedural','P/PR':'causal','PR':'causal','C/PR':'causal','C/P':'procedural'};
+
+function buildA4OpList(seq) {
+  var html = '';
+  seq.forEach(function(op, i) {
+    var stype = SCHEMA_MAP[op.mop||'C']||'conceptuel';
+    var checked = i<2?' checked':'';
+    html += '<div class="op-item'+(i<2?' sel':'')+'" id="a4op'+i+'" onclick="togA4('+i+')">';
+    html += '<input type="checkbox" id="a4chk'+i+'"'+checked+' onclick="event.stopPropagation();togA4('+i+')">';
+    html += '<div style="flex:1"><div style="font-size:9px;font-weight:bold;color:var(--bd)">'+esc(op.op_code||'')+' · '+esc(op.of_code||'')+'</div>';
+    html += '<div style="font-size:11px;margin:2px 0">'+esc((op.op_libelle||'').slice(0,75))+'</div>';
+    html += '<div style="margin-top:3px"><span class="tag tag-c">'+esc(op.mop||'')+'</span><span class="tag" style="background:#EEF2FF;color:#3730A3;border:1px solid #C7D2FE">Hab '+esc(op.habilete_num||'?')+' · '+esc(op.habilete_label||'')+'</span><span class="tag tag-pr">Schéma '+stype+'</span></div>';
+    html += '</div></div>';
+  });
+  document.getElementById('a4-op-list').innerHTML = html;
+  updA4Hint();
+}
+
+function togA4(i) {
+  var c=document.getElementById('a4chk'+i),row=document.getElementById('a4op'+i);
+  if(!c||!row)return; c.checked=!c.checked; row.className='op-item'+(c.checked?' sel':''); updA4Hint();
+}
+function updA4Hint() {
+  var sel=getA4Sel(); var h=document.getElementById('a4-hint'); var b=document.getElementById('a4-run');
+  h.textContent=sel.length===0?'Sélectionnez au moins 1 OP':sel.length+' OP sélectionné(s) : '+sel.map(function(o){return o.op_code;}).join(', ');
+  h.style.color=sel.length>2?'var(--red)':sel.length>0?'var(--gr)':'var(--muted)';
+  b.disabled=sel.length===0;
+}
+function getA4Sel() {
+  var src = STATE.a3&&STATE.a3.sequence||STATE.a3&&[];
+  if(!src||!src.length)return[];
+  return src.filter(function(_,i){var c=document.getElementById('a4chk'+i);return c&&c.checked;});
+}
+
+function genSelectedSVG() {
+  var sel=getA4Sel(); if(!sel.length)return;
+  var cont=document.getElementById('a4-svgcards');
+  sel.forEach(function(op){if(!document.getElementById('a4svc-'+op.op_code))cont.innerHTML+=buildSVGCard(op);});
+  (function genSeq(ops,idx){if(idx>=ops.length)return;genSVG(ops[idx],function(){genSeq(ops,idx+1);});})(sel,0);
+}
+
+function buildSVGCard(op) {
+  var stype=SCHEMA_MAP[op.mop||'C']||'conceptuel';
+  return '<div class="svg-card" id="a4svc-'+op.op_code+'"><div class="svg-hdr"><span class="svg-hdr-title">'+esc(op.op_code)+' — '+esc((op.op_libelle||'').slice(0,50))+'</span><span class="svg-hdr-meta">Schéma '+stype+' · MOP '+esc(op.mop||'')+' · Hab '+esc(op.habilete_num||'?')+'</span></div><div class="svg-sbar wait" id="a4st-'+op.op_code+'">En attente…</div><div class="svg-preview" id="a4pv-'+op.op_code+'"><div class="ph">Le schéma apparaîtra ici</div></div><div class="svg-actions" id="a4ac-'+op.op_code+'" style="display:none"><button class="btn btn-ok" onclick="approveOp(\''+op.op_code+'\')">✓ Valider</button><button class="btn btn-warn" onclick="regenOp(\''+op.op_code+'\')">↺ Régénérer</button></div></div>';
+}
+
+function buildSVGPrompt(op) {
+  var stype=SCHEMA_MAP[op.mop||'C']||'conceptuel';
+  var ci=(STATE.a3&&STATE.a3.concept_integrateur)||(STATE.a2&&STATE.a2.concept_integrateur)||'';
+  var m=(op.medias&&op.medias[0])||{};
+  var tDesc={'conceptuel':'Carte des concepts cles et leurs relations. Noeud central mis en valeur. Boites arrondies, fleches courtes etiquetees.','causal':'Tensions et decision. Deux zones opposees avec fleches de conflit, zone de decision centrale avec regles de choix.','procedural':'Pipeline horizontal 4-5 etapes numerotees, fleches, libelle court par etape.','comparatif':'Tableau comparatif visuel avec titres de colonnes.'}[stype]||'Schema pedagogique pertinent.';
+  return 'INSTRUCTION ABSOLUE : Genere UNIQUEMENT du code SVG valide. Ta reponse doit commencer par <svg et terminer par </svg>. Aucun texte avant, apres, aucun markdown.\n\nOP : '+op.op_code+' - '+(op.op_libelle||'')+'\nMOP : '+(op.mop||'')+' - Schema : '+stype+'\nHabilete : '+(op.habilete_num||'')+' - '+(op.habilete_label||'')+'\nScenario : '+(op.scenario_misa||'')+'\nMedia : '+(m.type||'')+' - '+(m.contenu||'')+'\nConcept integrateur : '+ci+'\n\nREGLES SVG :\n- viewBox="0 0 680 380" width="100%"\n- Fond transparent\n- Couleurs : #1F3864 #2E75B6 #BDD7EE #EBF3FB #FFF2CC #E2EFDA\n- Police Arial, texte min 11px, rx="6" pour boites\n- Aucun texte hors de sa boite, coordonnees positives\n\nCONTENU : '+tDesc+'\n\nCommence par <svg - rien avant.';
+}
+
+function genSVG(op, callback) {
+  var code=op.op_code;
+  var stEl=document.getElementById('a4st-'+code);
+  var pvEl=document.getElementById('a4pv-'+code);
+  var acEl=document.getElementById('a4ac-'+code);
+  if(stEl){stEl.className='svg-sbar run';stEl.textContent='Génération schéma '+(SCHEMA_MAP[op.mop||'C']||'conceptuel')+'…';}
+  if(pvEl)pvEl.innerHTML='<div class="ph">L\'IA dessine…</div>';
+  fetch('/api/claude',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','anthropic-version':'2023-06-01'},
+    body:JSON.stringify({model:'claude-sonnet-4-5',max_tokens:4000,messages:[{role:'user',content:buildSVGPrompt(op)}]})
+  })
+  .then(function(r){if(!r.ok)return r.text().then(function(t){throw new Error('API '+r.status+' — '+t.slice(0,150));});return r.json();})
+  .then(function(data){
+    var raw=data.content.map(function(b){return b.text||'';}).join('');
+    var svg=null;
+    var m1=raw.match(/<svg[\s\S]*<\/svg>/i);if(m1)svg=m1[0];
+    else{var m2=raw.match(/<svg[\s\S]*/i);if(m2){svg=m2[0];if(svg.indexOf('</svg>')===-1)svg+='</svg>';}}
+    if(!svg||svg.length<60)throw new Error('SVG introuvable. Réponse : '+raw.slice(0,200));
+    STATE.svgStore[code]={op_code:code,op_libelle:op.op_libelle,mop:op.mop,schema_type:SCHEMA_MAP[op.mop||'C']||'conceptuel',svg:svg,status:'pending'};
+    if(pvEl)pvEl.innerHTML=svg;
+    if(stEl){stEl.className='svg-sbar done';stEl.textContent='✓ Généré — validez ou régénérez';}
+    if(acEl)acEl.style.display='flex';
+    if(callback)callback();
+  })
+  .catch(function(e){
+    if(stEl){stEl.className='svg-sbar fail';stEl.textContent='⚠ '+e.message.slice(0,100);}
+    if(pvEl)pvEl.innerHTML='<div style="color:var(--red);font-size:10px;padding:12px;white-space:pre-wrap">'+esc(e.message)+'</div>';
+    if(acEl)acEl.style.display='flex';
+    if(callback)callback();
+  });
+}
+
+function approveOp(code) {
+  if(STATE.svgStore[code])STATE.svgStore[code].status='approved';
+  var st=document.getElementById('a4st-'+code);
+  if(st){st.className='svg-sbar approved';st.textContent='✓ Validé et indexé';}
+  var ac=document.getElementById('a4ac-'+code);
+  if(ac)ac.innerHTML='<span style="font-size:11px;color:var(--gr);font-style:italic">✓ Validé</span>';
+  updateIndex();
+}
+function regenOp(code) {
+  var src=STATE.a3&&STATE.a3.sequence||[];
+  var op=src.find(function(o){return o.op_code===code;});
+  if(op)genSVG(op,null);
+}
+function updateIndex() {
+  var ok=Object.values(STATE.svgStore).filter(function(r){return r.status==='approved';});
+  var card=document.getElementById('a4-index-card');
+  if(!ok.length){card.style.display='none';return;}
+  card.style.display='block';
+  document.getElementById('a4-index-grid').innerHTML=ok.map(function(r){return '<div style="border:1px solid var(--grb);border-radius:6px;overflow:hidden"><div style="background:var(--gpl);padding:4px 7px;font-size:9px;font-weight:bold;color:var(--gr);display:flex;justify-content:space-between"><span>'+esc(r.op_code)+'</span><span>'+esc(r.schema_type)+'</span></div><div style="padding:5px;background:#fafafa">'+r.svg+'</div></div>';}).join('');
+}
+function sendToA5() {
+  STATE.a4=Object.values(STATE.svgStore).filter(function(r){return r.status==='approved';});
+  showTab(4);
+  document.getElementById('a5-recv').style.display='block';
+  document.getElementById('a5-recv-preview').textContent='Agents 1-4 : données prêtes. '+STATE.a4.length+' schémas SVG validés.';
+}
+
+/* ═══════════════════════════════════════════
+   AGENT 5
+═══════════════════════════════════════════ */
+var SYS_A5 = 'INSTRUCTION : Reponds UNIQUEMENT avec un objet JSON valide. Commence par { et termine par }. Aucun markdown.\n\nTu es l\'Agent 5 du pipeline Learning Design France Processus. Role : controle qualite global MISA/MOT et assemblage du kit final.\n\nVERIFICATIONS :\n1. Chaque OF a au moins un OP\n2. Chaque OP a une activite dans le scenario\n3. 3 principes MISA : S->C/F->Hab01-02, F->P->Hab03-05, M/E->PR->Hab06-10\n4. Scenarios coherents avec habiletes\n5. Concept integrateur present dans les sequences 4 et 5\n\nFORMAT JSON : {"titre_module":"...","score_global":number,"score_detail":{"competences_op":number,"mop_habilete_scenario":number,"concept_integrateur":number,"tracabilite":number},"alertes":[{"type":"ok|warn|err","categorie":"...","message":"...","op_concerne":"...ou null"}],"fiche_synthese":{"titre_formation":"...","public_cible":"...","duree_totale":"...","niveau_dominant":"...","scenario_dominant":"...","nombre_op":number,"mop_repartition":"...","concept_integrateur":"...","points_forts":["..."],"points_vigilance":["..."]},"tracabilite":[{"bloc":"...","of":"...","op_code":"...","mop":"...","habilete_num":number,"habilete_label":"...","niveau":"...","scenario":"...","duree_min":number}],"recommandations_archivage":"..."}';
+
+function runA5() {
+  if (!getKey()) return;
+  var hasData = STATE.a2 || STATE.a3;
+  if (!hasData) { showErr('a5-eb', 'Parcourez d\'abord les Agents 2 et 3 (ou chargez les données BC5 depuis ces onglets).'); return; }
+  showSt('a5-st', 'Vérification cohérence compétences → OP → activités…');
+  var msg = 'Livrables du pipeline a verifier :\n';
+  if(STATE.a1)msg+='=== AGENT 1 ===\n'+JSON.stringify(STATE.a1).slice(0,1500)+'\n\n';
+  if(STATE.a2)msg+='=== AGENT 2 (Tableau MISA/MOP) ===\n'+JSON.stringify(STATE.a2).slice(0,2500)+'\n\n';
+  if(STATE.a3)msg+='=== AGENT 3 (Scenario) ===\n'+JSON.stringify(STATE.a3).slice(0,2500)+'\n\n';
+  msg+='Effectue le controle qualite MISA/MOT complet et produis le rapport QA + fiche synthese en JSON strict.';
+  callAPI(SYS_A5, msg, 5000, function(err, raw) {
+    hideSt('a5-st');
+    if(err){showErr('a5-eb',err);return;}
+    var d=parseJSON(raw);
+    if(!d){showErr('a5-eb','JSON invalide. Extrait : '+raw.slice(0,200));return;}
+    STATE.a5=d;
+    renderA5Result(d);
+  });
+}
+
+function renderA5Result(d) {
+  var score=Math.min(100,Math.max(0,d.score_global||0));
+  document.getElementById('a5-score').textContent=score+' / 100';
+  var lbl=score>=90?'✓ Kit cohérent — prêt pour validation':score>=70?'△ Quelques ajustements recommandés':'⚠ Révision nécessaire';
+  document.getElementById('a5-score-lbl').textContent=lbl;
+  var fill=document.getElementById('a5-score-fill');
+  fill.style.width=score+'%';
+  fill.style.background=score>=90?'var(--gr)':score>=70?'var(--gold)':'var(--red)';
+  var al=d.alertes||[];
+  document.getElementById('a5-alerts').innerHTML=al.map(function(a){
+    var icon=a.type==='ok'?'✓':a.type==='warn'?'△':'✕';
+    return '<div class="alert-item '+a.type+'"><span style="font-weight:bold;flex-shrink:0">'+icon+'</span><span><strong>'+esc(a.categorie||'')+'</strong> — '+esc(a.message||'')+(a.op_concerne?' <em>('+esc(a.op_concerne)+')</em>':'')+'</span></div>';
+  }).join('');
+  var f=d.fiche_synthese||{};
+  document.getElementById('a5-fiche-titre').textContent=f.titre_formation||'Formation';
+  document.getElementById('a5-ci').textContent=f.concept_integrateur||'—';
+  var items=[['Public',f.public_cible||'—'],['Durée',f.duree_totale||'—'],['Niveau',f.niveau_dominant||'—'],['Scénario dominant',f.scenario_dominant||'—'],['Nombre d\'OP',(f.nombre_op||'—')+' OP'],['Répartition MOP',f.mop_repartition||'—']];
+  document.getElementById('a5-fi-grid').innerHTML=items.map(function(it){return '<div class="fi-item"><div class="fil">'+esc(it[0])+'</div><div class="fiv">'+esc(it[1])+'</div></div>';}).join('');
+  var tr=d.tracabilite||[];
+  document.getElementById('a5-tbody').innerHTML=tr.map(function(r){
+    return '<tr><td style="font-weight:bold;color:var(--bd);font-size:10px">'+esc(r.bloc||'')+'</td><td style="font-size:10px">'+esc(r.of||'')+'</td><td style="font-family:monospace;font-size:9px">'+esc(r.op_code||'')+'</td><td><span class="tag tag-c">'+esc(r.mop||'')+'</span></td><td style="font-size:10px">'+esc(r.habilete_num||'?')+' · '+esc(r.habilete_label||'')+'</td><td><span class="tag tag-n'+(r.niveau||'F')+'">'+esc(r.niveau||'')+'</span></td><td style="font-size:10px">'+esc(r.scenario||'')+'</td><td style="font-family:monospace;font-size:9px">'+esc(r.duree_min||'?')+'min</td></tr>';
+  }).join('');
+  document.getElementById('a5-result').style.display='block';
+  document.getElementById('tab4').classList.add('done');
+}
+
+function valider() {
+  var nom=document.getElementById('a5-nom').value.trim();
+  var dt=document.getElementById('a5-date').value.trim();
+  if(!nom||!dt){var m=document.getElementById('a5-val-msg');m.style.display='block';m.style.color='var(--red)';m.textContent='⚠ Renseignez le nom et la date.';return;}
+  var fn=document.getElementById('a5-fn').value.trim();
+  if(STATE.a5)STATE.a5._validation={validateur:nom,fonction:fn,date:dt,statut:'valide'};
+  var m=document.getElementById('a5-val-msg');m.style.display='block';m.style.color='var(--gr)';m.textContent='✓ Kit validé par '+nom+(fn?' ('+fn+')':'')+' le '+dt+' — Archivage SB3 prêt.';
+}
+function exportKit() {
+  if(!STATE.a5)return;
+  var kit={_meta:{pipeline:'France Processus',version:'0.4',date:new Date().toISOString().slice(0,10)},rapport_qa:STATE.a5,validation:STATE.a5&&STATE.a5._validation||null};
+  var ez=document.getElementById('a5-exp');ez.style.display='block';
+  setTimeout(function(){document.getElementById('a5-expta').value=JSON.stringify(kit,null,2);},10);
+}
+function doCopy(){
+  var ta=document.getElementById('a5-expta');if(!ta)return;
+  ta.select();ta.setSelectionRange(0,99999);
+  var ok=false;try{ok=document.execCommand('copy');}catch(e){}
+  var btn=document.getElementById('a5-cpbtn');
+  if(ok){btn.textContent='✓ Copié!';setTimeout(function(){btn.textContent='📋 Copier';},3000);}
+  else btn.textContent='→ Ctrl+C';
+}
+
+/* ═══════════════════════════════════════════
+   UTILITAIRES
+═══════════════════════════════════════════ */
+function showSt(id,txt){var e=document.getElementById(id);e.style.display='flex';document.getElementById(id.replace('-st','-stxt')).textContent=txt;document.getElementById(id.replace('-st','-eb')).style.display='none';}
+function hideSt(id){document.getElementById(id).style.display='none';}
+function showErr(id,txt){var e=document.getElementById(id);e.style.display='block';e.textContent='⚠ '+txt;}
+function showAlert(zoneId,txt){/* non utilisé */}
+function copyJSON(id){var ta=document.getElementById(id);if(!ta)return;ta.style.display='block';ta.select();ta.setSelectionRange(0,99999);try{document.execCommand('copy');}catch(e){}ta.style.display='none';}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+</script>
+</body>
+</html>
